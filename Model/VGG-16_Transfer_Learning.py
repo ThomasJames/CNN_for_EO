@@ -49,4 +49,9 @@ vgg16.classifier[-1] = nn.Sequential(
 print(vgg16.features)
 print(vgg16.classifier)
 
+# Change the criterion to nn.NLLoss
+criterion = nn.NLLLoss()
+
+
+
 
