@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms, models
 from torch.utils.data import DataLoader
+from torch.optim import Adam
+import matplotlib.pyplot as plt
 
 
 torch.manual_seed(0)
@@ -27,7 +29,11 @@ transform = transforms.Compose([
 trainset = ""
 testset = ""
 
+# Ask PyTorch for the pre-trained VGG-16 model
 vgg16 = models.vgg16(pretrained=True)
+
+# Set optimiser to Adam
+optimiser = Adam(vgg16.parameters())
 
 print(vgg16.features)
 print(vgg16.classifier)
