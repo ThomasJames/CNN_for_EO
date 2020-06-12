@@ -71,13 +71,16 @@ def sp_noise(image, prob):
 
 
 if __name__ == "__main__":
+
+    print("Image Labelling Program")
+    print(" ")
     region = input(str("Region: "))
     region_number = input(str("Region number: "))
     project = "DataLabelling"
-    output = "Shall I output the tiles?: "
+    output = input(str("Shall I output the tiles on this run?: "))
 
     # True Color for reference
-    TC = np.load(f"/Users/tj/PycharmProjects/{project}/{region}/MSI-Region{region_number}.npy")[-1]
+    TC = np.load(f"/Users/tj/PycharmProjects/{project}/{region}/TC-Region{region_number}.npy")[-1]
     plt.imshow(TC)
     plt.show()
     plt.imsave("Index_samples/TC.png", TC)
