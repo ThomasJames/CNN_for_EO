@@ -1,7 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import cv2
-import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 from scipy.ndimage import filters
@@ -134,30 +131,37 @@ if __name__ == "__main__":
 
     # Display and output
     plt.imshow(NDWI, cmap="Blues")
+    plt.title("NDWI")
     plt.show()
     plt.imsave("Index_samples/NDWI.png", NDWI, cmap="Blues")
 
     plt.imshow(MNDWI, cmap="Blues")
+    plt.title("MNDWI")
     plt.show()
     plt.imsave("Index_samples/MNDWI.png", MNDWI, cmap="Blues")
 
     plt.imshow(I, cmap="Blues")
+    plt.title("I")
     plt.show()
     plt.imsave("Index_samples/I.png", I, cmap="Blues")
 
     plt.imshow(PI, cmap="Blues")
+    plt.title("PI")
     plt.show()
     plt.imsave("Index_samples/PI.png", PI, cmap="Blues")
 
     plt.imshow(NBDI, cmap="Blues")
+    plt.title("NBDI")
     plt.show()
     plt.imsave("Index_samples/NBDI.png", NBDI, cmap="Blues")
 
     plt.imshow(NVDI, cmap="Blues")
+    plt.title("NVDI")
     plt.show()
     plt.imsave("Index_samples/NVDI.png", NVDI, cmap="Blues")
 
     plt.imshow(BU, cmap="Blues")
+    plt.title("BU")
     plt.show()
     plt.imsave("Index_samples/BU.png", BU, cmap="Blues")
 
@@ -175,6 +179,7 @@ if __name__ == "__main__":
     blur_hh = cv2.GaussianBlur(sar_hh, (5, 5), 0)
     ret3_hh, th3_hh = cv2.threshold(blur_hh, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     plt.imshow(th3_hh, cmap="cividis")
+    plt.title("HH")
     plt.show()
 
     sar_vv = lee_filter(sar_vv)
@@ -183,16 +188,8 @@ if __name__ == "__main__":
     blur_vv = cv2.GaussianBlur(sar_vv, (5, 5), 0)
     ret3_vv, th3_vv = cv2.threshold(blur_vv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     plt.imshow(th3_vv, cmap="cividis")
+    plt.title("VV")
     plt.show()
-
-    # Output and display
-    plt.imshow(th3_hh, cmap="Blues")
-    plt.show()
-    plt.imsave("Index_samples/SAR-HH.png", th3_hh, cmap="cividis")
-
-    plt.imshow(th3_vv, cmap="Blues")
-    plt.show()
-    plt.imsave("Index_samples/SAR-VV.png", th3_vv, cmap="cividis")
 
     WI = NDWI + NBDI
 
@@ -223,11 +220,11 @@ if __name__ == "__main__":
 
         # Blur filter
         TC_Blur = cv2.medianBlur(TC, 5)
-        Blur = "_Blur"
+        Blur = "Blur"
         split_image(dim_pix=244, im=WI, location=region, dtype=f"Mask",
-                    filename=f"Region_{region}{Blur}")
+                    filename=f"Region_{region}_{Blur}")
         split_image(dim_pix=244, im=TC_Blur, location=region, dtype=f"TC",
-                    filename=f"Region_{region}{Blur}")
+                    filename=f"Region_{region}_{Blur}")
 
         # Noise Filter
         noise = sp_noise(TC, 0.05)
@@ -237,3 +234,4 @@ if __name__ == "__main__":
                     filename=f"Region_{region_number}_{Noise}")
         split_image(dim_pix=244, im=TC_noise, location=region, dtype=f"TC",
                     filename=f"Region_{region_number}_{Noise}")
+
