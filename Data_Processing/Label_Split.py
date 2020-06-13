@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
@@ -5,6 +6,9 @@ from scipy.ndimage import filters
 from scipy.ndimage import measurements
 import math
 import random
+import gdal
+
+from s2cloudless import S2PixelCloudDetector, CloudMaskRequest
 
 
 # Lee filter - Set to 7 x 7 window
@@ -82,17 +86,28 @@ if __name__ == "__main__":
     plt.show()
     plt.imsave("Index_samples/TC.png", TC)
 
+
     """"" 
     Water masking with Multispectral imagery (MSI) 
     """""
 
-    MSI = np.load(f"{region}/MSI-Region{region_number}.npy")[-1]
-    blue = MSI[:, :, 1]
-    green = MSI[:, :, 2]
-    red = MSI[:, :, 3]
-    NIR = MSI[:, :, 7]
-    SWIR1 = MSI[:, :, 10]
-    SWIR2 = MSI[:, :, 11]
+    MSI = np.load(f"{region}/MSI-Region{region_number}.npy")
+    blue =   MSI[-1][:, :, 1]
+    green =  MSI[-1][:, :, 2]
+    red =    MSI[-1][:, :, 3]
+    NIR =    MSI[-1][:, :, 7]
+    SWIR1 =  MSI[-1][:, :, 10]
+    SWIR2 =  MSI[-1][:, :, 11]
+
+    """""                                                
+    Cloud Masking      
+    """""
+
+    print("Applying cloud mask")
+    cloud_detector = S2PixelCloudDetector(threshold=0.4, average_over=4, dilation_size=2, all_bands=True)
+    cloud_mask = (cloud_detector.get_cloud_masks(MSI))[-1]
+    plt.imshow(cloud_mask, cmap="Blues")
+    plt.show()
 
     # Normalized Difference Water Index (NDWI) McFeeters (1996)
     NDWI = ((green - NIR) / (green + NIR))
@@ -191,7 +206,8 @@ if __name__ == "__main__":
     plt.title("VV")
     plt.show()
 
-    WI = NDWI + NBDI
+
+
 
     if output == "yes":
         # NORMAL
@@ -234,4 +250,5 @@ if __name__ == "__main__":
                     filename=f"Region_{region_number}_{Noise}")
         split_image(dim_pix=244, im=TC_noise, location=region, dtype=f"TC",
                     filename=f"Region_{region_number}_{Noise}")
-
+    else:
+        print("You asked for no outputs")
