@@ -1,13 +1,14 @@
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
-from PIL import Image
+from PIL import ImageFilter
 from scipy.ndimage import filters
 from scipy.ndimage import measurements
 import math
 import random
-
 from s2cloudless import S2PixelCloudDetector, CloudMaskRequest
+import torch
+from torch.nn import Softmax
 
 # Lee filter - Set to 7 x 7 window
 def lee_filter(img, size=7):
@@ -101,11 +102,26 @@ if __name__ == "__main__":
     Cloud Masking      
     """""
 
+    all_bands = True
+
+    bands_num = ((MSI[-1].shape)[2])
+    if bands_num == 13:
+        bands_num = True
+    elif bands_num == 12:
+        bands_num = False
+    else:
+        print("Cloud mask wont compute")
+
+
     need_cloud_filter = input(str("Is a cloud filter needed?: "))
 
     if need_cloud_filter == "yes":
         print("Applying cloud mask...")
-        cloud_detector = S2PixelCloudDetector(threshold=0.4, average_over=4, dilation_size=2, all_bands=True)
+        cloud_detector = S2PixelCloudDetector(threshold=0.4,
+                                              average_over=4,
+                                              dilation_size=2,
+                                              all_bands=all_bands)
+
         cloud_mask = (cloud_detector.get_cloud_masks(MSI))[-1]
         plt.imshow(cloud_mask, cmap="Blues")
         plt.show()
@@ -262,8 +278,31 @@ if __name__ == "__main__":
         plt.show()
         plt.imsave("/Users/tj/PycharmProjects/DataLabelling/Index_samples/UWI.png", UWI)
 
+    radar_filter = input(str("Shall I apply the radar density filter?: "))
 
-    """Results"""
+    """""
+    SAR Filter
+    """""
+    if apply_sar == "yes":
+        if radar_filter == "yes":
+            polarisation = input(str("is VV or HH more suitable?: "))
+            if polarisation == "VV":
+                polarisation = sar_vv
+            elif polarisation == "HH":
+                polarisation = sar_hh
+            else:
+                print("no polarisation has been chosen")
+
+            print("Applying the Radar Filter")
+            UWI = (UWI - polarisation) / (UWI + polarisation)
+            print(np.amax(UWI), np.amin(UWI))
+            plt.imshow(UWI, cmap="Blues")
+            plt.title("Custom Water Index_radar")
+            plt.show()
+            plt.imsave("/Users/tj/PycharmProjects/DataLabelling/Index_samples/UWI.png", UWI)
+
+
+
 
     if output == "yes":
         # NORMAL
