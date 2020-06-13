@@ -6,10 +6,8 @@ from scipy.ndimage import filters
 from scipy.ndimage import measurements
 import math
 import random
-import gdal
 
 from s2cloudless import S2PixelCloudDetector, CloudMaskRequest
-
 
 # Lee filter - Set to 7 x 7 window
 def lee_filter(img, size=7):
@@ -77,8 +75,9 @@ if __name__ == "__main__":
     print(" ")
     region = input(str("Region: "))
     region_number = input(str("Region number: "))
-    project = "DataLabelling"
+    apply_sar = input(str("Is SAR avaliable?: "))
     output = input(str("Shall I output the tiles on this run?: "))
+    project = "DataLabelling"
 
     # True Color for reference
     TC = np.load(f"/Users/tj/PycharmProjects/{project}/{region}/TC-Region{region_number}.npy")[-1]
@@ -86,11 +85,10 @@ if __name__ == "__main__":
     plt.show()
     plt.imsave("Index_samples/TC.png", TC)
 
-
     """"" 
     Water masking with Multispectral imagery (MSI) 
     """""
-
+    print(f"Loading {region} MSI data")
     MSI = np.load(f"{region}/MSI-Region{region_number}.npy")
     blue =   MSI[-1][:, :, 1]
     green =  MSI[-1][:, :, 2]
@@ -103,12 +101,21 @@ if __name__ == "__main__":
     Cloud Masking      
     """""
 
-    print("Applying cloud mask")
-    cloud_detector = S2PixelCloudDetector(threshold=0.4, average_over=4, dilation_size=2, all_bands=True)
-    cloud_mask = (cloud_detector.get_cloud_masks(MSI))[-1]
-    plt.imshow(cloud_mask, cmap="Blues")
-    plt.show()
+    need_cloud_filter = input(str("Is a cloud filter needed?: "))
 
+    if need_cloud_filter == "yes":
+        print("Applying cloud mask...")
+        cloud_detector = S2PixelCloudDetector(threshold=0.4, average_over=4, dilation_size=2, all_bands=True)
+        cloud_mask = (cloud_detector.get_cloud_masks(MSI))[-1]
+        plt.imshow(cloud_mask, cmap="Blues")
+        plt.show()
+
+
+    """""                                                
+    Calculating Spectral Indicies      
+    """""
+
+    print("Creating Spectral Indicies...")
     # Normalized Difference Water Index (NDWI) McFeeters (1996)
     NDWI = ((green - NIR) / (green + NIR))
     NDWI[NDWI < 0] = 0
@@ -144,6 +151,7 @@ if __name__ == "__main__":
     BU[BU < 0] = 0
     BU[BU > 0] = 1
 
+    print("Plotting...")
     # Display and output
     plt.imshow(NDWI, cmap="Blues")
     plt.title("NDWI")
@@ -183,42 +191,90 @@ if __name__ == "__main__":
     """"" 
     Water masking with Synthetic Apeture Radar (SAR)
     """""
+    if apply_sar == "yes":
+        print(f"Loading {region} SAR data...")
+        SAR = np.load(f"{region}/SAR-Region{region_number}.npy")[-1]
+        sar_hh = SAR[:, :, 0]
+        sar_vv = SAR[:, :, 1]
 
-    SAR = np.load(f"{region}/SAR-Region{region_number}.npy")[-1]
-    sar_hh = SAR[:, :, 0]
-    sar_vv = SAR[:, :, 1]
+        sar_hh = lee_filter(sar_hh)
+        plt.imsave("sar_hh.png", sar_hh, cmap="cividis")  # Saves to the local directory
+        sar_hh = cv2.imread("sar_hh.png", 0)
+        blur_hh = cv2.GaussianBlur(sar_hh, (5, 5), 0)
+        ret3_hh, th3_hh = cv2.threshold(blur_hh, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        plt.imshow(th3_hh, cmap="cividis")
+        plt.title("HH")
+        plt.show()
 
-    sar_hh = lee_filter(sar_hh)
-    plt.imsave("sar_hh.png", sar_hh, cmap="cividis")  # Saves to the local directory
-    sar_hh = cv2.imread("sar_hh.png", 0)
-    blur_hh = cv2.GaussianBlur(sar_hh, (5, 5), 0)
-    ret3_hh, th3_hh = cv2.threshold(blur_hh, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    plt.imshow(th3_hh, cmap="cividis")
-    plt.title("HH")
-    plt.show()
+        sar_vv = lee_filter(sar_vv)
+        plt.imsave("sar_vv.png", sar_vv, cmap="cividis")  # Saves to the local directory
+        sar_vv = cv2.imread("sar_vv.png", 0)
+        blur_vv = cv2.GaussianBlur(sar_vv, (5, 5), 0)
+        ret3_vv, th3_vv = cv2.threshold(blur_vv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        plt.imshow(th3_vv, cmap="cividis")
+        plt.title("VV")
+        plt.show()
 
-    sar_vv = lee_filter(sar_vv)
-    plt.imsave("sar_vv.png", sar_vv, cmap="cividis")  # Saves to the local directory
-    sar_vv = cv2.imread("sar_vv.png", 0)
-    blur_vv = cv2.GaussianBlur(sar_vv, (5, 5), 0)
-    ret3_vv, th3_vv = cv2.threshold(blur_vv, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    plt.imshow(th3_vv, cmap="cividis")
-    plt.title("VV")
-    plt.show()
+    """""
+    Water Index fusion algorithm 
+    """""
+
+    # Set the parameters
+    a = 1  # NBDI
+    b = 1  # PI
+
+    if need_cloud_filter == "yes":
+        print("Calculating custom water index...")
+        UWI = ((a * PI) + (b * BU)) - cloud_mask
+        UWI[UWI < 0] = 0
+        UWI[UWI > 0] = 1
+        plt.imshow(UWI, cmap="Blues")
+        plt.title("Custom Water Index")
+        plt.show()
+        plt.imsave("/Users/tj/PycharmProjects/DataLabelling/Index_samples/UWI.png", UWI)
+    else:
+        print("Calculating custom water index...")
+        UWI = ((a * PI) + (b * BU))
+        UWI[UWI < 0] = 0
+        UWI[UWI > 0] = 1
+        plt.imshow(UWI, cmap="Blues")
+        plt.title("Custom Water Index")
+        plt.show()
+        plt.imsave("/Users/tj/PycharmProjects/DataLabelling/Index_samples/UWI.png", UWI)
+
+    """""
+    White Roof Filter
+    """""
+
+    need_roof_filer = input(str("need roof filter?: "))
+
+    if need_roof_filer == "yes":
+        print("Cutting out white roofs")
+        RGB = red + green + blue / 3
+        RGB[RGB > 0.2] = 1
+        RGB[RGB < 0.2] = 0
+        plt.imshow(RGB)
+        plt.show()
+        UWI = UWI - RGB
+        UWI[UWI < 0] = 0
+        plt.imshow(UWI, cmap="Blues")
+        plt.title("Custom Water Index")
+        plt.show()
+        plt.imsave("/Users/tj/PycharmProjects/DataLabelling/Index_samples/UWI.png", UWI)
 
 
-
+    """Results"""
 
     if output == "yes":
         # NORMAL
-        split_image(dim_pix=244, im=WI, location=region, dtype=f"Mask",
+        split_image(dim_pix=244, im=UWI, location=region, dtype=f"Mask",
                     filename=f"Region_{region_number}")
         split_image(dim_pix=244, im=TC, location=region, dtype=f"TC",
                     filename=f"Region_{region_number}")
 
         # Horizontal Flip
         TC_Hflip = np.flip(TC, 1)
-        WI_Hflip = np.flip(WI, 1)
+        WI_Hflip = np.flip(UWI, 1)
         Hflip = "Hflip"
         split_image(dim_pix=244, im=WI_Hflip, location=region,
                     dtype=f"Mask", filename=f"Region_{region_number}_{Hflip}")
@@ -227,7 +283,7 @@ if __name__ == "__main__":
 
         # Vertical Flip
         TC_Vflip = np.flip(TC, 0)
-        WI_Vflip = np.flip(WI, 0)
+        WI_Vflip = np.flip(UWI, 0)
         Vflip = "Vflip"
         split_image(dim_pix=244, im=WI_Vflip, location=region,
                     dtype=f"Mask", filename=f"Region_{region_number}_{Vflip}")
@@ -237,7 +293,7 @@ if __name__ == "__main__":
         # Blur filter
         TC_Blur = cv2.medianBlur(TC, 5)
         Blur = "Blur"
-        split_image(dim_pix=244, im=WI, location=region, dtype=f"Mask",
+        split_image(dim_pix=244, im=UWI, location=region, dtype=f"Mask",
                     filename=f"Region_{region}_{Blur}")
         split_image(dim_pix=244, im=TC_Blur, location=region, dtype=f"TC",
                     filename=f"Region_{region}_{Blur}")
@@ -246,7 +302,7 @@ if __name__ == "__main__":
         noise = sp_noise(TC, 0.05)
         TC_noise = noise + TC
         Noise = "Noise"
-        split_image(dim_pix=244, im=WI, location=region, dtype=f"Mask",
+        split_image(dim_pix=244, im=UWI, location=region, dtype=f"Mask",
                     filename=f"Region_{region_number}_{Noise}")
         split_image(dim_pix=244, im=TC_noise, location=region, dtype=f"TC",
                     filename=f"Region_{region_number}_{Noise}")
