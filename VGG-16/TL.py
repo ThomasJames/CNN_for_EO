@@ -13,19 +13,30 @@ import numpy as np
 from torch import save
 import torch
 
+"""""           
+Set the device   
+"""""
+
+device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
+print(f"device is: {device}")
 
 """""           
 Load the data   
 """""
+traindir = "/Users/tj/PycharmProjects/CNN_for_EO/data/Validate/images/"
+validdir = "/Users/tj/PycharmProjects/CNN_for_EO/data/test_set/images/"
+
+im_predict = "/Users/tj/PycharmProjects/CNN_for_EO/data/test_set/images/TCGA_HT_A61A_20000127_66.tif"
+
 # Image transformations
 image_transforms = {
     # Train uses data augmentation
     'train':
     transforms.Compose([
         transforms.RandomResizedCrop(size=256, scale=(0.8, 1.0)),
-        transforms.RandomRotation(degrees=15),
-        transforms.ColorJitter(),
-        transforms.RandomHorizontalFlip(),
+        # transforms.RandomRotation(degrees=15),
+        # transforms.ColorJitter(),
+        # transforms.RandomHorizontalFlip(),
         transforms.CenterCrop(size=224),  # Image net standards
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406],
@@ -41,12 +52,9 @@ image_transforms = {
     ]),
 }
 
-traindir = "/Users/tj/PycharmProjects/CNN_for_EO/data/train_set/images/"
-validdir = "/Users/tj/PycharmProjects/CNN_for_EO/data/train_set/mask/"
+batch_size = 6
 
-batch_size = 1
-
-# Datasets from folders
+# Data sets from folders
 data = {
     'train':
     datasets.ImageFolder(root=traindir, transform=image_transforms['train']),
@@ -57,13 +65,26 @@ data = {
 # Dataloader iterators, make sure to shuffle
 dataloaders = {
     'train': DataLoader(data['train'], batch_size=batch_size, shuffle=True),
-    'val': DataLoader(data['valid'], batch_size=batch_size, shuffle=True)
+    'valid': DataLoader(data['valid'], batch_size=batch_size, shuffle=True)
 }
+
+train_loader = dataloaders['train']
+test_loader = dataloaders['valid']
 
 # Iterate through the dataloader once
 trainiter = iter(dataloaders['train'])
 features, labels = next(trainiter)
 print(features.shape, labels.shape)
+
+# Show the first image
+print(features[-1][0:2].shape)
+plt.imshow(np.array(features[0][-1]))
+plt.show()
+
+
+
+
+
 
 """""           
 Load and prepare] the model 
@@ -87,8 +108,6 @@ model.classifier[-1] = nn.Sequential(
 )
 
 
-print(model.classifier)
-
 # Find total parameters and trainable parameters
 total_params = sum(p.numel() for p in model.parameters())
 print(f'{total_params:,} total parameters.')
@@ -106,8 +125,11 @@ from torch import optim
 criterion = nn.NLLLoss()
 optimizer = optim.Adam(model.parameters())
 
+n_epochs = 20
 
-n_epochs = 10
+trainloader = [dataloaders['train'], dataloaders['valid']]
+
+loss_tracker = []
 
 for epoch in range(n_epochs):
   for data, targets in dataloaders['train']:
@@ -115,6 +137,7 @@ for epoch in range(n_epochs):
     out = model(data)
     # Calculate loss
     loss = criterion(out, targets)
+    print(loss)
     # Backpropagation
     loss.backward()
     # Update model parameters
@@ -124,4 +147,5 @@ for data, targets in dataloaders['train']:
     log_ps = model(data)
     # Convert to probabilities
     ps = torch.exp(log_ps)
+    loss_tracker.append(ps)
 

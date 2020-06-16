@@ -80,7 +80,7 @@ print(device)
 # Load in the data
 
 trainset = "data/test_set/images"
-testset = "data/train_set"
+testset = "data/Validate"
 
 print(len(testset))
 #
